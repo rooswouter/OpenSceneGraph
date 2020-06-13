@@ -706,7 +706,13 @@ unsigned int Image::computeNumComponents(GLenum pixelFormat)
         case (GL_COMPRESSED_SRGB8_ALPHA8_ASTC_12x12_KHR) : return 4;
         default:
         {
-            OSG_WARN<<"error pixelFormat = "<<std::hex<<pixelFormat<<std::dec<<std::endl;
+            // Check if we have a PixelFormat that is equivalent to another format.
+            // If so, try calling this function again with computed value
+            GLenum computedPixelFormat = computePixelFormat(pixelFormat);
+            if (computedPixelFormat != pixelFormat) {
+                return computeNumComponents(computedPixelFormat);
+            }
+            OSG_WARN << "error pixelFormat = " << std::hex << pixelFormat << std::dec << std::endl;
             return 0;
         }
     }
@@ -1696,11 +1702,11 @@ void Image::copySubImage(int s_offset, int t_offset, int r_offset, const osg::Im
         }
         unsigned int rowWidthInBlocks = (_s + footprint.x() - 1) / footprint.x();
         unsigned int blockSize = computeBlockSize(_pixelFormat, 0);
-        data_destination = _data + blockSize * (rowWidthInBlocks * (t_offset / footprint.y()) + (s_offset / footprint.x()));
+        data_destination = _data + blockSize * (rowWidthInBlocks * t_offset + (s_offset / footprint.x()));
         unsigned int copy_width = (osg::minimum(source->s(), _s - s_offset) + footprint.x() - 1) / footprint.x();
         unsigned int copy_height = (osg::minimum(source->t(), _t - t_offset) + footprint.y() - 1) / footprint.y();
         unsigned int dstRowStep = blockSize * rowWidthInBlocks;
-        unsigned int srcRowStep = blockSize * ((source->_s + footprint.x() - 1) / footprint.x());
+        unsigned int srcRowStep = blockSize * (source->_s + footprint.x() - 1) / footprint.x();
         const unsigned char* data_source = source->data(0, 0, 0);
         for (unsigned int row = 0; row < copy_height; row += 1) { //copy blocks in a row, footprint.y() rows at a time
             memcpy(data_destination, data_source, copy_width * blockSize);
